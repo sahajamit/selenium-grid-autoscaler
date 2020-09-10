@@ -6,6 +6,10 @@ It can give an elasticity to the K8s based selenium grid where the browser nodes
 
 To make sure this application does not end up sucking the entire compute power of your cluster, we have a lower and upper cap beyound which the scale will never go.
 
+To run this application in docker:
+```
+docker pull sahajamit/selenium-grid-k8s-autoscaler
+```
 
 #### Configurable Properties
 ```
