@@ -12,10 +12,8 @@ https://github.com/sahajamit/selenium-grid-autoscaler
 
 #### Configurable Properties (found in /src/main/resources/application.properties)
 ```
-k8s_host=<Kubernetes HOST>
-selenium_grid_host=<Grid_URL_Or_IP>:<Grid_Port> 
-gridUrl=http://${selenium_grid_host}/grid/console
-k8s_api_url=https://${k8s_host}/v3/project/path_to_chrome_deployment
+gridUrl=http://<Grid_URL_Or_IP>:<Grid_Port>/grid/console
+k8s_api_url=https://<Kubernetes HOST>/v3/project/path_to_chrome_deployment
 
 # This property will control the maximum scale to which the browser pods can be scaled up.
 node.chrome.max.scale.limit=2
