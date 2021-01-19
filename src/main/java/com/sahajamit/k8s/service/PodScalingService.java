@@ -101,6 +101,8 @@ public class PodScalingService {
         String responseString = response.body().string();
         JSONObject jsonObject = new JSONObject(responseString);
         int updatedScale;
+        
+        updatedScale = jsonObject.getInt("scale");
 
         if (updatedScale != scaledValue)
             logger.error("Error in scaling. Here is the json response: " + responseString);
