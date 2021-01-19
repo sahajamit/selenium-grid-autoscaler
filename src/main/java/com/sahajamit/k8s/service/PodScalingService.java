@@ -71,7 +71,7 @@ public class PodScalingService {
         Response response = call.execute();
         String htmlContent = response.body().string();
         JSONObject jsonObject = new JSONObject(htmlContent);
-        return jsonObject.getJSONObject("status").getInt("replicas");
+        return jsonObject.getInt("scale");
     }
 
     private void updateScale(int scaledValue) throws IOException, InterruptedException {
@@ -86,13 +86,13 @@ public class PodScalingService {
 
     private void scale(int scaledValue) throws IOException, InterruptedException {
         MediaType JSON = MediaType.parse("application/strategic-merge-patch+json");
-        String payload = String.format("{ \"spec\": { \"replicas\": %s } }", scaledValue);
+        String payload = String.format("{ \"scale\": %s }", scaledValue);
         Request r = new Request.Builder()
                 .url(k8sApiUrl)
                 .header("Authorization", "Bearer " + k8sToken)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/strategic-merge-patch+json")
-                .patch(RequestBody.create(JSON, payload))
+                .put(RequestBody.create(JSON, payload))
                 .build();
         Call call = httpClient.newCall(r);
         Response response = call.execute();
@@ -101,12 +101,6 @@ public class PodScalingService {
         String responseString = response.body().string();
         JSONObject jsonObject = new JSONObject(responseString);
         int updatedScale;
-
-        JSONObject spec = jsonObject.getJSONObject("spec");
-        if (spec.has("replicas"))
-            updatedScale = spec.getInt("replicas");
-        else
-            updatedScale = 0;
 
         if (updatedScale != scaledValue)
             logger.error("Error in scaling. Here is the json response: " + responseString);

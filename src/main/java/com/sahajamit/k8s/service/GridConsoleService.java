@@ -11,6 +11,8 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.io.IOUtils;
+import com.google.common.base.Charsets;
 
 @Service
 public class GridConsoleService {
@@ -27,7 +29,7 @@ public class GridConsoleService {
     public GridConsoleStatus getStatus() throws IOException {
         HttpMethod method = new GetMethod(gridUrl);
         client.executeMethod(method);
-        String htmlContent = method.getResponseBodyAsString();
+        String htmlContent = IOUtils.toString(method.getResponseBodyAsStream(), Charsets.UTF_8);
 
         GridConsoleStatus status = new GridConsoleStatus();
 
