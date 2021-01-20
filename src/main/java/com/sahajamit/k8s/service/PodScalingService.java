@@ -70,6 +70,8 @@ public class PodScalingService {
                 .build();
         Call call = httpClient.newCall(r);
         Response response = call.execute();
+        if (response.code() != 200)
+            throw new RuntimeException("Error getting current scale; Make sure the API Token and k8s_api_url are correct");
         String htmlContent = response.body().string();
         JSONObject jsonObject = new JSONObject(htmlContent);
         return jsonObject.getInt("scale");
