@@ -49,6 +49,7 @@ public class PodScalingService {
     @Autowired
     private GridConsoleService gridStatusService;
     private OkHttpClient httpClient;
+    private static int currentScale;
 
     @PostConstruct
     private void init() throws NoSuchAlgorithmException, KeyManagementException {
@@ -75,8 +76,11 @@ public class PodScalingService {
     }
 
     private void updateScale(int scaledValue) throws IOException, InterruptedException {
-        if (scaledValue > maxScaleLimit)
+        if (scaledValue > maxScaleLimit){
             logger.warn("Scale required {} which is more than the max scale limit of {}. Hence no auto-scaling is performed.", scaledValue, maxScaleLimit);
+            if (currentScale != maxScaleLimit)
+                scale(maxScaleLimit);
+        }
         else if (scaledValue < minScaleLimit)
             logger.warn("Scale required {} which is less than the min scale limit of {}. Hence no auto-scaling is performed.", scaledValue, minScaleLimit);
         else {
@@ -114,7 +118,7 @@ public class PodScalingService {
         logger.debug("Let's check if auto-scaling is required...");
         int totalRunningNodes = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         int queuedRequests = gridStatus.getWaitingRequestsCount();
-        int currentScale = getScale();
+        currentScale = getScale();
         int requiredScale;
         if (queuedRequests > 0) {
             requiredScale = totalRunningNodes + queuedRequests;
