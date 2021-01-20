@@ -49,6 +49,7 @@ public class PodScalingService {
     @Autowired
     private GridConsoleService gridStatusService;
     private OkHttpClient httpClient;
+    private static int currentScale;
 
     @PostConstruct
     private void init() throws NoSuchAlgorithmException, KeyManagementException {
@@ -69,14 +70,19 @@ public class PodScalingService {
                 .build();
         Call call = httpClient.newCall(r);
         Response response = call.execute();
+        if (response.code() != 200)
+            throw new RuntimeException("Error getting current scale; Make sure the API Token and k8s_api_url are correct");
         String htmlContent = response.body().string();
         JSONObject jsonObject = new JSONObject(htmlContent);
-        return jsonObject.getJSONObject("status").getInt("replicas");
+        return jsonObject.getInt("scale");
     }
 
     private void updateScale(int scaledValue) throws IOException, InterruptedException {
-        if (scaledValue > maxScaleLimit)
+        if (scaledValue > maxScaleLimit){
             logger.warn("Scale required {} which is more than the max scale limit of {}. Hence no auto-scaling is performed.", scaledValue, maxScaleLimit);
+            if (currentScale != maxScaleLimit)
+                scale(maxScaleLimit);
+        }
         else if (scaledValue < minScaleLimit)
             logger.warn("Scale required {} which is less than the min scale limit of {}. Hence no auto-scaling is performed.", scaledValue, minScaleLimit);
         else {
@@ -86,13 +92,13 @@ public class PodScalingService {
 
     private void scale(int scaledValue) throws IOException, InterruptedException {
         MediaType JSON = MediaType.parse("application/strategic-merge-patch+json");
-        String payload = String.format("{ \"spec\": { \"replicas\": %s } }", scaledValue);
+        String payload = String.format("{ \"scale\": %s }", scaledValue);
         Request r = new Request.Builder()
                 .url(k8sApiUrl)
                 .header("Authorization", "Bearer " + k8sToken)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/strategic-merge-patch+json")
-                .patch(RequestBody.create(JSON, payload))
+                .put(RequestBody.create(JSON, payload))
                 .build();
         Call call = httpClient.newCall(r);
         Response response = call.execute();
@@ -101,12 +107,8 @@ public class PodScalingService {
         String responseString = response.body().string();
         JSONObject jsonObject = new JSONObject(responseString);
         int updatedScale;
-
-        JSONObject spec = jsonObject.getJSONObject("spec");
-        if (spec.has("replicas"))
-            updatedScale = spec.getInt("replicas");
-        else
-            updatedScale = 0;
+        
+        updatedScale = jsonObject.getInt("scale");
 
         if (updatedScale != scaledValue)
             logger.error("Error in scaling. Here is the json response: " + responseString);
@@ -118,7 +120,7 @@ public class PodScalingService {
         logger.debug("Let's check if auto-scaling is required...");
         int totalRunningNodes = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         int queuedRequests = gridStatus.getWaitingRequestsCount();
-        int currentScale = getScale();
+        currentScale = getScale();
         int requiredScale;
         if (queuedRequests > 0) {
             requiredScale = totalRunningNodes + queuedRequests;
