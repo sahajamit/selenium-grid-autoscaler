@@ -74,7 +74,7 @@ public class PodScalingService {
             throw new RuntimeException("Error getting current scale; Make sure the API Token and k8s_api_url are correct");
         String htmlContent = response.body().string();
         JSONObject jsonObject = new JSONObject(htmlContent);
-        return jsonObject.getInt("scale");
+        return jsonObject.getJSONObject("status").getInt("replicas");
     }
 
     private void updateScale(int scaledValue) throws IOException, InterruptedException {
@@ -92,13 +92,13 @@ public class PodScalingService {
 
     private void scale(int scaledValue) throws IOException, InterruptedException {
         MediaType JSON = MediaType.parse("application/strategic-merge-patch+json");
-        String payload = String.format("{ \"scale\": %s }", scaledValue);
+        String payload = String.format("{ \"spec\": { \"replicas\": %s } }", scaledValue);
         Request r = new Request.Builder()
                 .url(k8sApiUrl)
                 .header("Authorization", "Bearer " + k8sToken)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/strategic-merge-patch+json")
-                .put(RequestBody.create(JSON, payload))
+                .patch(RequestBody.create(JSON, payload))
                 .build();
         Call call = httpClient.newCall(r);
         Response response = call.execute();
@@ -108,7 +108,11 @@ public class PodScalingService {
         JSONObject jsonObject = new JSONObject(responseString);
         int updatedScale;
         
-        updatedScale = jsonObject.getInt("scale");
+        JSONObject spec = jsonObject.getJSONObject("spec");
+        if (spec.has("replicas"))
+            updatedScale = spec.getInt("replicas");
+        else
+            updatedScale = 0;
 
         if (updatedScale != scaledValue)
             logger.error("Error in scaling. Here is the json response: " + responseString);
@@ -120,7 +124,7 @@ public class PodScalingService {
         logger.debug("Let's check if auto-scaling is required...");
         int totalRunningNodes = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         int queuedRequests = gridStatus.getWaitingRequestsCount();
-        currentScale = getScale();
+        int currentScale = getScale();
         int requiredScale;
         if (queuedRequests > 0) {
             requiredScale = totalRunningNodes + queuedRequests;
