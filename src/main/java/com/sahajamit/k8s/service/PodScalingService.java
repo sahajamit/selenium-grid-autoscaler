@@ -124,7 +124,7 @@ public class PodScalingService {
         logger.debug("Let's check if auto-scaling is required...");
         int totalRunningNodes = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         int queuedRequests = gridStatus.getWaitingRequestsCount();
-        int currentScale = getScale();
+        currentScale = getScale();
         int requiredScale;
         if (queuedRequests > 0) {
             requiredScale = totalRunningNodes + queuedRequests;
@@ -149,13 +149,22 @@ public class PodScalingService {
     }
 
     private void waitForScaleToHappen(int scale) throws IOException, InterruptedException {
-        GridConsoleStatus gridStatus = gridStatusService.getStatus();
+        GridConsoleStatus gridStatus = null;
+        try {
+            gridStatus = gridStatusService.getStatus();
+        } catch (Exception e) {
+            logger.error("Error getting Grid status, will try again...");
+        }
         int existingScale = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         while (existingScale != scale) {
             int pollingTime = 5;
             logger.info("Sleeping {} seconds for scaling to happen. Current scale: {} and required scale: {}", pollingTime, existingScale, scale);
             TimeUnit.SECONDS.sleep(pollingTime);
-            gridStatus = gridStatusService.getStatus();
+            try {
+                gridStatus = gridStatusService.getStatus();
+            } catch (Exception e) {
+                logger.error("Error getting Grid status, will try again...");
+            }
             existingScale = gridStatus.getAvailableNodesCount() + gridStatus.getBusyNodesCount();
         }
         logger.info("Selenium Grid is successfully scaled to {}", scale);
