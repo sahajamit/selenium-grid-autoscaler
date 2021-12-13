@@ -1,6 +1,9 @@
 # Start with a base image containing Java runtime
 FROM adoptopenjdk/openjdk8:alpine-slim
 
+# Log4j mitigation https://www.docker.com/blog/apache-log4j-2-cve-2021-44228/
+ENV LOG4J_FORMAT_MSG_NO_LOOKUPS=true
+
 # Add Maintainer Info
 LABEL maintainer="sahajamit@gmail.com"
 
