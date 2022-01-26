@@ -50,6 +50,11 @@ public class PodScalingService {
     private GridConsoleService gridStatusService;
     private OkHttpClient httpClient;
     private static int currentScale;
+    @Value("${grid_scale_check_frequency_in_sec}")
+    private int scaleCheckFrequency;
+    @Value("${grid_scale_down_wait_time_in_sec}")
+    private int scaleDownWaitTime;
+    private int currentScaleDownWaitTime = 0;
 
     @PostConstruct
     private void init() throws NoSuchAlgorithmException, KeyManagementException {
@@ -128,15 +133,27 @@ public class PodScalingService {
         int requiredScale;
         if (queuedRequests > 0) {
             requiredScale = totalRunningNodes + queuedRequests;
+            currentScaleDownWaitTime = 0;
             logger.info("Scale up is required. Current scale: {} and required scale: {}", currentScale, requiredScale);
         } else if (totalRunningNodes < minScaleLimit) {
             requiredScale = minScaleLimit;
+            currentScaleDownWaitTime = 0;
             logger.info("Scale up is required. Current scale: {} and required scale: {}", currentScale, requiredScale);
         } else if (totalRunningNodes > minScaleLimit && gridStatus.getBusyNodesCount() == 0) {
-            logger.info("Scale down is required. Current available scale: {} and minimum required scale: {}", currentScale, minScaleLimit);
-            requiredScale = minScaleLimit;
+            logger.info("Scale down may be required, waiting " + (scaleDownWaitTime - currentScaleDownWaitTime) + " seconds...");
+            if (currentScaleDownWaitTime >= scaleDownWaitTime) {
+                logger.info("Scale down is required. Current available scale: {} and minimum required scale: {}", currentScale, minScaleLimit);
+                requiredScale = minScaleLimit;
+            } else {
+                currentScaleDownWaitTime += scaleCheckFrequency;
+                return;
+            }
         } else {
             logger.debug("No scaling is required..");
+            if (currentScaleDownWaitTime > 0) {
+                logger.info("Grid is still in use, no scale down will be done at this time.");
+            }
+            currentScaleDownWaitTime = 0;
             return;
         }
         updateScale(requiredScale);
